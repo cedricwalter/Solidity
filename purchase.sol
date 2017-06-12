@@ -5,11 +5,14 @@ contract Purchase {
     uint public value; // Of item
 
     address public seller;
+
     address public buyer;
 
     enum State {Created, Locked, Inactive}
 
     State public state;
+
+    mapping (address => uint) pendingWithdrawals;
 
     function Purchase() payable {
         seller = msg.sender;
@@ -47,8 +50,8 @@ contract Purchase {
     /// Can only be called by the seller before
     /// the contract is locked.
     function abort()
-      onlySeller
-      inState(State.Created)
+    onlySeller
+    inState(State.Created)
     {
         Aborted();
         state = State.Inactive;
@@ -60,8 +63,8 @@ contract Purchase {
     /// The ether will be locked until confirmReceived
     /// is called.
     function confirmPurchase()
-      inState(State.Created)
-      condition(msg.value == (2 * value))
+    inState(State.Created)
+    condition(msg.value == (2 * value))
     payable
     {
         PurchaseConfirmed();
@@ -72,8 +75,8 @@ contract Purchase {
     /// Confirm that you (the buyer) received the item.
     /// This will release the locked ether.
     function confirmReceived()
-      onlyBuyer
-      inState(State.Locked)
+    onlyBuyer
+    inState(State.Locked)
     {
         ItemReceived();
         // It is important to change the state first because
@@ -95,9 +98,24 @@ contract Purchase {
         //    amount of gas (explicitly by using require, assert, revert, throw or because the operation is just too
         //    expensive) - it “runs out of gas” (OOG). If you use transfer or send with a return value check, this might
         //    provide a means for the recipient to block progress in the sending contract.
-        buyer.transfer(value);
-        seller.transfer(this.balance);
+
+        // Bad code allows both the buyer and the seller to block the refund
+        //  buyer.transfer(value);
+        //  seller.transfer(this.balance);
+
+        //  Solving with withdraw pattern
+        pendingWithdrawals[buyer] += value;
+        pendingWithdrawals[seller] += this.balance;
     }
 
+    function withdraw()
+    inState(State.Inactive)
+    {
+        uint amount = pendingWithdrawals[msg.sender];
+        // Remember to zero the pending refund before
+        // sending to prevent re-entrancy attacks
+        pendingWithdrawals[msg.sender] = 0;
+        msg.sender.transfer(amount);
+    }
 }
 
