@@ -79,7 +79,7 @@ contract Unicorns is owned {
         }
     }
 
-
+    // Events allow light clients to react on changes efficiently.
     event Transfer(address indexed from, address indexed to, uint256 value);
     event FrozenFunds(address target, bool frozen);
     event ApprovedAccount(address target);
@@ -125,6 +125,10 @@ contract Unicorns is owned {
 
         /* Notify anyone listening that this transfer took place */
         Transfer(msg.sender, _to, _value);
+    }
+
+    function balances(address _account) returns (uint) {
+        return balanceOf[_account];
     }
 
 }
